@@ -15,7 +15,7 @@ import (
 )
 
 const (
-	defaultRepo       = "px0-ai/px0"
+	defaultRepo       = "kproBS/read-code"
 	updateCheckPeriod = 24 * time.Hour
 )
 
@@ -41,15 +41,15 @@ func getRepoName() string {
 }
 
 func stateFilePath() string {
-	// Respect XDG_STATE_HOME or fallback to ~/.local/state/px0 or ~/.px0
+	// Respect XDG_STATE_HOME or fallback to ~/.local/state/read-code or ~/.read-code
 	if xdg := os.Getenv("XDG_STATE_HOME"); xdg != "" {
-		return filepath.Join(xdg, "px0", "update_check.json")
+		return filepath.Join(xdg, "read-code", "update_check.json")
 	}
 	home, err := os.UserHomeDir()
 	if err != nil {
-		return filepath.Join(os.TempDir(), "px0_update_check.json")
+		return filepath.Join(os.TempDir(), "read-code_update_check.json")
 	}
-	return filepath.Join(home, ".px0", "update_check.json")
+	return filepath.Join(home, ".read-code", "update_check.json")
 }
 
 func readUpdateState() (*updateState, error) {
@@ -127,7 +127,7 @@ func fetchLatestRelease(repo string) (*githubRelease, error) {
 	if err != nil {
 		return nil, err
 	}
-	req.Header.Set("User-Agent", "px0-updater")
+	req.Header.Set("User-Agent", "read-code-updater")
 	req.Header.Set("Accept", "application/vnd.github.v3+json")
 
 	resp, err := client.Do(req)
@@ -156,8 +156,10 @@ func fetchLatestRelease(repo string) (*githubRelease, error) {
 }
 
 // checkDailyUpdate runs in a background goroutine on CLI startup.
-// It ensures that checking for updates never blocks px0 startup (<1ms).
+// It ensures that checking for updates never blocks read-code startup (<1ms).
 func checkDailyUpdate(currentVersion string) {
+	// The fork runs wrapper-spawned instances in quiet or JSON mode; update
+	// notifications belong to interactive sessions only.
 	if uiQuiet {
 		return
 	}
@@ -190,7 +192,7 @@ func checkDailyUpdate(currentVersion string) {
 }
 
 func printUpdateNotification(latestVer, currentVersion string) {
-	msg := fmt.Sprintf("a new version of px0 (v%s) is available (current: v%s)", latestVer, currentVersion)
+	msg := fmt.Sprintf("a new version of read-code (v%s) is available (current: v%s)", latestVer, currentVersion)
 	uiStatus("step", msg, "run 'px0 --update' to upgrade", 0, os.Stderr)
 }
 

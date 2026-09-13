@@ -12,16 +12,16 @@ import (
 
 type ProcessMetrics struct {
 	RSSBytes  uint64  `json:"rssBytes"`
-	CPUUsage  float64 `json:"cpuUsage"`  // percentage e.g. 1.2%
+	CPUUsage  float64 `json:"cpuUsage"` // percentage e.g. 1.2%
 	Goroutine int     `json:"goroutines"`
 }
 
 type metricsCollector struct {
-	mu           sync.Mutex
-	lastSample   time.Time
-	lastCPUTime  time.Duration
-	lastUsage    float64
-	numCPU       int
+	mu          sync.Mutex
+	lastSample  time.Time
+	lastCPUTime time.Duration
+	lastUsage   float64
+	numCPU      int
 }
 
 var globalMetrics = &metricsCollector{

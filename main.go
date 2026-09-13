@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	_ "embed"
+	"encoding/json"
 	"flag"
 	"fmt"
 	"net"
@@ -22,21 +23,25 @@ var rawVersion string
 
 var version = strings.TrimSpace(rawVersion)
 
+// jsonEmit mirrors the -json flag value for package-level lifecycle emitter.
+var jsonEmit *bool
+
 func main() {
 	var (
-		port    = flag.Int("port", 7777, "port to listen on (0 picks a free one)")
-		host    = flag.String("host", "127.0.0.1", "address to bind")
-		noOpen  = flag.Bool("no-open", false, "do not launch a browser")
-		noLSP   = flag.Bool("no-lsp", false, "do not use language servers, even if installed")
-		dev     = flag.String("dev", "", "serve the UI from this source directory instead of the embedded copy")
-		showVer = flag.Bool("version", false, "print version and exit")
+		port         = flag.Int("port", 7777, "port to listen on (0 picks a free one)")
+		host         = flag.String("host", "127.0.0.1", "address to bind")
+		noOpen       = flag.Bool("no-open", false, "do not launch a browser")
+		noLSP        = flag.Bool("no-lsp", false, "do not use language servers, even if installed")
+		dev          = flag.String("dev", "", "serve the UI from this source directory instead of the embedded copy")
+		showVer      = flag.Bool("version", false, "print version and exit")
 		showVerShort = flag.Bool("v", false, "print version and exit (shorthand)")
-		doUpdate = flag.Bool("update", false, "check for and install latest version of px0")
-		noColor = flag.Bool("no-color", false, "disable colour output")
-		quiet   = flag.Bool("quiet", false, "suppress narration")
+		doUpdate     = flag.Bool("update", false, "check for and install latest version of read-code")
+		noColor      = flag.Bool("no-color", false, "disable colour output")
+		quiet        = flag.Bool("quiet", false, "suppress narration")
+		jsonOut      = flag.Bool("json", false, "emit machine-readable lifecycle events as JSON lines on stdout (implies -quiet)")
 	)
 	flag.Usage = func() {
-		fmt.Fprintf(os.Stderr, "px0 %s - a code navigator\n\nusage: px0 [flags] [directory]\n\nflags:\n", version)
+		fmt.Fprintf(os.Stderr, "read-code %s - a read-only code navigator\n\nusage: read-code [flags] [directory]\n\nflags:\n", version)
 		flag.PrintDefaults()
 	}
 	flag.Parse()
@@ -48,9 +53,15 @@ func main() {
 	if *quiet {
 		uiQuiet = true
 	}
+	if *jsonOut {
+		// Quiet narration plus JSON lines for whoever spawned us.
+		uiQuiet = true
+		jsonEmit = jsonOut
+		emitJSON("starting", map[string]any{"version": version, "root": flag.Arg(0)})
+	}
 
 	if *showVer || *showVerShort || (flag.NArg() == 1 && flag.Arg(0) == "version") {
-		fmt.Printf("px0 %s (%s/%s)\n", version, runtime.GOOS, runtime.GOARCH)
+		fmt.Printf("read-code %s (%s/%s)\n", version, runtime.GOOS, runtime.GOARCH)
 		return
 	}
 
@@ -94,7 +105,8 @@ func main() {
 	srv := &http.Server{Handler: NewServer(ix, lsp)}
 
 	url := "http://" + addr
-	uiHeading("px0 "+version, nil, os.Stdout)
+	emitJSON("listening", map[string]any{"url": url, "root": root})
+	uiHeading("read-code "+version, nil, os.Stdout)
 	uiKV("workspace", root, 11, os.Stdout)
 	uiKV("url", uiAccent(url, os.Stdout), 11, os.Stdout)
 	uiHint("ctrl-c to stop", os.Stdout)
@@ -108,13 +120,15 @@ func main() {
 	go func() {
 		ix.Build()
 		n, _, ms := ix.Stats()
+		emitJSON("indexed", map[string]any{"files": n, "indexMs": ms})
 		uiStatus("ok", fmt.Sprintf("indexed %d files", n), fmt.Sprintf("%dms", ms), 0, os.Stdout)
 		if names := lsp.Available(); len(names) > 0 {
 			uiBullet(fmt.Sprintf("language servers: %s (started on first use)", strings.Join(names, ", ")), os.Stdout)
 		}
 	}()
 
-	// Check for updates asynchronously once a day without delaying startup (<1ms).
+	// Update checks are an interactive-CLI affordance: checkDailyUpdate
+	// no-ops under quiet/JSON mode, so wrapper spawns skip them entirely.
 	go checkDailyUpdate(version)
 
 	// Language servers are children that can hold gigabytes. Shut them down on
@@ -124,6 +138,7 @@ func main() {
 	go func() {
 		<-stop
 		fmt.Print("\r")
+		emitJSON("stopping", map[string]any{})
 		uiStatus("warn", "interrupted", "", 0, os.Stderr)
 		ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 		defer cancel()
@@ -137,6 +152,20 @@ func main() {
 		fatal(err)
 	}
 	lsp.Close()
+	emitJSON("stopped", map[string]any{})
+}
+
+// emitJSON writes one lifecycle event as a JSON line on stdout. Enabled by
+// -json; spawn wrappers parse these instead of scraping narration.
+func emitJSON(event string, fields map[string]any) {
+	if jsonEmit == nil || !*jsonEmit {
+		return
+	}
+	line, err := json.Marshal(map[string]any{"event": event, "fields": fields})
+	if err != nil {
+		return
+	}
+	fmt.Println(string(line))
 }
 
 // listen binds the requested port, walking forward if it is already taken so a
@@ -220,6 +249,6 @@ func isWSL() bool {
 }
 
 func fatal(err error) {
-	fmt.Fprintln(os.Stderr, "px0:", err)
+	fmt.Fprintln(os.Stderr, "read-code:", err)
 	os.Exit(1)
 }

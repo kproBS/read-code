@@ -54,6 +54,11 @@ export function cycleTheme() {
 }
 
 export function initTheme() {
+  // Query param wins: a host app (Swarm) pins the palette per spawn.
+  try {
+    const requested = new URLSearchParams(location.search).get('theme');
+    if (requested && setTheme(requested, false)) return;
+  } catch {}
   let saved = null;
   try { saved = localStorage.getItem(KEY); } catch {}
   if (saved && setTheme(saved, false)) return;

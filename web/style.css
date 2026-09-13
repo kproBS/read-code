@@ -5,7 +5,7 @@
    so they outrank these defaults regardless of load order. See STYLING.md. */
 :root {
   --lh: 21px;
-  --mono: "JetBrains Mono", "Fira Code", "Cascadia Code", "SF Mono", Menlo, Consolas, ui-monospace, monospace;
+  --mono: "SF Mono", Menlo, Consolas, "Fira Code", "Cascadia Code", ui-monospace, monospace;
   --ui: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
   --fs: 13.5px;
 
@@ -77,6 +77,8 @@ body.side-hidden #side, body.side-hidden #resizer { display: none; }
 .side-logo { flex: none; display: flex; align-items: center; padding: 2px 3px; border-radius: 3px; }
 .side-logo:hover { background: var(--bg4); }
 .side-logo img { height: 13px; width: auto; }
+.side-logo-text { font-family: var(--mono); font-size: 10.5px; font-weight: 600; color: var(--fg); opacity: 0.75; }
+.empty-logo-text { font-family: var(--mono); font-size: 28px; font-weight: 600; color: var(--fg); opacity: 0.85; }
 
 /* ---------- tree ---------- */
 .tw { display: block; }

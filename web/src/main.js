@@ -15,6 +15,8 @@ import { initFind } from './find.js';
 import { initPalette } from './palette.js';
 import { initShortcuts } from './shortcuts.js';
 import { initTheme } from './theme.js';
+import { readHash } from './history.js';
+import { openFile } from './tabs.js';
 import { updateStatus, initMetrics, initStatusFit, updateMetricsDisplay } from './status.js';
 
 // Initialize all subsystems
@@ -67,6 +69,12 @@ initStatusFit();
   }
   updateStatus();
   await drawTree('', treeEl, 0);
+
+  // Deep link: #<path>[:<line>] from the spawner opens the targeted tab.
+  const link = readHash();
+  if (link && link.path) {
+    try { await openFile(link.path, { line: link.line, push: false }); } catch {}
+  }
 
   if (document.fonts && document.fonts.ready) {
     document.fonts.ready.then(() => { measure(); layout(); render(); });
